@@ -3,7 +3,7 @@ name: Deploy to Amazon ECS
 on:
   push:
     branches:
-      - main
+      - develop
     paths-ignore:
       - "terraform/**"
 
@@ -12,6 +12,7 @@ env:
   ECR_REPOSITORY: aws-devops
   ECS_SERVICE: ecs-service
   ECS_CLUSTER: my-cluster
+  TASK_FAMILY: my-task  # Update this to match your Terraform task definition name
 
 jobs:
   deploy:
@@ -29,11 +30,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install Terraform ✅
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: latest
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -48,22 +44,21 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Deploy using Terraform
+      - name: Fetch Current Task Definition from AWS
         run: |
-          terraform init
-          terraform apply -auto-approve -var "ecr_repository_url=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY"
+          aws ecs describe-task-definition --task-definition $TASK_FAMILY \
+            --query "taskDefinition" > task-definition.json
 
-      - name: Check if Task Definition File Exists
+      - name: Update Task Definition with New Image
         run: |
-          if [ ! -f "task-defination.json" ]; then
-            echo "ERROR: task-defination.json file is missing!"
-            exit 1
-          fi
+          jq --arg IMAGE "$IMAGE_URI" '.containerDefinitions[0].image = $IMAGE' task-definition.json > updated-task-definition.json
 
-      - name: Deploy to Amazon ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: task-defination.json
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      - name: Register Updated Task Definition
+        run: |
+          aws ecs register-task-definition --cli-input-json file://updated-task-definition.json \
+            | jq -r '.taskDefinition.taskDefinitionArn' > task-def-arn.txt
+          echo "TASK_DEF_ARN=$(cat task-def-arn.txt)" >> $GITHUB_ENV
+
+      - name: Deploy New Task Definition to ECS
+        run: |
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $TASK_DEF_ARN
