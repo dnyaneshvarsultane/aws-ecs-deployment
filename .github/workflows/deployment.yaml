@@ -10,6 +10,8 @@ on:
 env:
   AWS_REGION: us-east-1  
   ECR_REPOSITORY: aws-devops
+  ECS_SERVICE: my-ecs-service  # Replace with your ECS service name
+  ECS_CLUSTER: my-ecs-cluster  # Replace with your ECS cluster name
 
 jobs:
   deploy:
@@ -40,8 +42,9 @@ jobs:
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
-      - name: Deploy using Terraform
+      - name: Update ECS Service
         run: |
-          cd terraform
-          terraform init
-          terraform apply -auto-approve -var "ecr_repository_url=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY"
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment
