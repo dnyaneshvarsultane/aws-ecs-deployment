@@ -88,10 +88,13 @@ resource "aws_instance" "ecs_instance" {
 
 resource "aws_s3_bucket" "app_bucket" {
   bucket = "gem-protech-${random_string.suffix.result}"
-  acl    = "private" # Optional: Set appropriate ACL
+  acl    = "private"
   tags = {
     Name = "gem-protech"
   }
+
+  # Uncomment the following if creating the bucket in a region other than us-east-1
+  # region = "us-west-2"
 }
 
 resource "random_string" "suffix" {
