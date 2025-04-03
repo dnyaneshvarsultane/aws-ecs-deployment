@@ -3,9 +3,9 @@ provider "aws" {
 }
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+  cidr_block = "10.0.0.0/16"
+    enable_dns_support = true
+    enable_dns_hostnames = true
 }
 
 resource "aws_internet_gateway" "igw" {
@@ -13,15 +13,8 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-}
-
-resource "aws_subnet" "public_2" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "us-east-1b"
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.1.0/24"
   map_public_ip_on_launch = true
 }
 
@@ -90,14 +83,12 @@ resource "aws_instance" "ecs_instance" {
   user_data              = <<-EOF
               #!/bin/bash
               echo ECS_CLUSTER=${aws_ecs_cluster.my_cluster.name} >> /etc/ecs/ecs.config
-              yum install -y aws-cli ecs-init
-              systemctl enable --now ecs
               EOF
 }
 
 resource "aws_s3_bucket" "app_bucket" {
   bucket = "gem-protech-${random_string.suffix.result}"
-  acl    = "private"
+  acl    = "private" # Optional: Set appropriate ACL
   tags = {
     Name = "gem-protech"
   }
@@ -106,15 +97,22 @@ resource "aws_s3_bucket" "app_bucket" {
 resource "random_string" "suffix" {
   length  = 8
   special = false
-  upper   = false
+  upper   = false # Ensure the suffix is lowercase to comply with S3 naming rules
 }
 
+
+resource "aws_subnet" "public_2" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.2.0/24"
+  availability_zone = "us-east-1b" # Specify a different AZ
+  map_public_ip_on_launch = true
+}
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds-subnet-group"
   subnet_ids = [aws_subnet.public.id, aws_subnet.public_2.id]
 }
 
-resource "aws_db_instance" "db" {
+resource "aws_db_instance" "db" {  # Changed from aws_rds_instance to aws_db_instance
   engine               = "mariadb"
   instance_class       = "db.t3.micro"
   allocated_storage    = 20
@@ -150,10 +148,11 @@ resource "aws_cloudfront_distribution" "cdn" {
     origin_id   = "S3-gem-protech"
   }
 
-  enabled = true
+
+  enabled             = true
   default_cache_behavior {
     target_origin_id       = "S3-gem-protech"
-    viewer_protocol_policy = "redirect-to-https"
+    viewer_protocol_policy = "allow-all"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     forwarded_values {
@@ -184,12 +183,13 @@ resource "aws_ecs_task_definition" "my_task" {
     cpu    = 256
     essential = true
     portMappings = [{ containerPort = 80, hostPort = 80 }]
-    environment = [
-      { name = "DB_HOST", value = aws_db_instance.db.address },
-      { name = "DB_USER", value = "admin" },
-      { name = "DB_PASSWORD", value = var.db_password },
-      { name = "S3_BUCKET", value = aws_s3_bucket.app_bucket.bucket }
-    ]
+environment = [
+  { name = "DB_HOST", value = aws_db_instance.db.address },
+  { name = "DB_USER", value = "admin" },
+  { name = "DB_PASSWORD", value = var.db_password },
+  { name = "S3_BUCKET", value = aws_s3_bucket.app_bucket.bucket }
+]
+
     mountPoints = [{
       sourceVolume  = "efs-storage"
       containerPath = "/mnt/efs"
