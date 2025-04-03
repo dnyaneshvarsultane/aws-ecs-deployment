@@ -3,13 +3,15 @@ name: Deploy to Amazon ECS
 on:
   push:
     branches:
-      - main
+      - develop
     paths-ignore:
       - "terraform/**"
 
 env:
   AWS_REGION: us-east-1  
   ECR_REPOSITORY: aws-devops
+  ECS_SERVICE: ecs-service
+  ECS_CLUSTER: my-cluster
 
 jobs:
   deploy:
@@ -39,9 +41,24 @@ jobs:
           IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Deploy using Terraform
+      - name: Deploy using Terraform (No `cd terraform`)
         run: |
-          cd terraform
           terraform init
           terraform apply -auto-approve -var "ecr_repository_url=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY"
+
+      - name: Check if Task Definition File Exists
+        run: |
+          if [ ! -f "task-defination.json" ]; then
+            echo "ERROR: task-defination.json file is missing!"
+            exit 1
+          fi
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-defination.json
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
