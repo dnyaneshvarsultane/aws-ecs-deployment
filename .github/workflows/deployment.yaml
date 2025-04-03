@@ -10,8 +10,8 @@ on:
 env:
   AWS_REGION: us-east-1  
   ECR_REPOSITORY: aws-devops
-  ECS_SERVICE: my-ecs-service  # Replace with your ECS service name
-  ECS_CLUSTER: my-ecs-cluster  # Replace with your ECS cluster name
+  ECS_SERVICE: my-ecs-service  # Verify this matches the service name in the infra pipeline
+  ECS_CLUSTER: my-cluster      # Updated to match the actual cluster name
 
 jobs:
   deploy:
