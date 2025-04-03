@@ -43,24 +43,10 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Debug - Check Terraform directory
+      - name: Update ECS Task Definition with New Image
         run: |
-          echo "Current Directory: $(pwd)"
-          ls -l
-          if [ ! -d "terraform" ]; then echo "Terraform directory is missing!"; exit 1; fi
-
-      - name: Deploy using Terraform
-        working-directory: terraform
-        run: |
-          terraform init
-          terraform apply -auto-approve -var "ecr_repository_url=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY"
-
-      - name: Check if Task Definition File Exists
-        run: |
-          if [ ! -f "task-definition.json" ]; then
-            echo "ERROR: task-definition.json file is missing!"
-            exit 1
-          fi
+          jq --arg IMAGE "$IMAGE_URI" '.containerDefinitions[0].image = $IMAGE' task-definition.json > task-def-updated.json
+          mv task-def-updated.json task-definition.json
 
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
