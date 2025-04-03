@@ -3,7 +3,7 @@
     "containerDefinitions": [
       {
         "name": "test-container",
-        "image": "339713126349.dkr.ecr.us-east-1.amazonaws.com/aws-devops",
+        "image": "339713126349.dkr.ecr.us-east-1.amazonaws.com/aws-devops:latest",
         "memory": 512,
         "cpu": 256,
         "essential": true,
