@@ -12,7 +12,6 @@ env:
   ECR_REPOSITORY: aws-devops
   ECS_SERVICE: ecs-service
   ECS_CLUSTER: my-cluster
-  TASK_FAMILY: my-task  # Set the ECS task definition family name
 
 jobs:
   deploy:
@@ -44,26 +43,18 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Fetch Current Task Definition from AWS
-        run: |
-          aws ecs describe-task-definition --task-definition $TASK_FAMILY \
-            --query "taskDefinition" > task-definition.json
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Debug - List Files Before Processing
+      - name: Update ECS Task Definition with New Image
         run: |
-          echo "Checking if task-definition.json exists..."
-          ls -l
-          if [ ! -f "task-definition.json" ]; then
-            echo "ERROR: task-definition.json file is missing!"
-            exit 1
-          fi
+          jq --arg IMAGE "${{ env.IMAGE_URI }}" '.containerDefinitions[0].image = $IMAGE' task-definition.json > task-def-updated.json
+          mv task-def-updated.json task-definition.json
 
-      - name: Update Task Definition with New Image
-        run: |
-          jq --arg IMAGE "$IMAGE_URI" '.containerDefinitions[0].image = $IMAGE' ./task-definition.json > task-def-updated.json
-
-      - name: Register New Task Definition
-        run: |
-          TASK_REVISION=$(aws ecs register-task-definition --cli-input-json file://task-def-updated.json --query 'taskDefinition.revision' --output text)
-          echo "TASK_REVISION=$TASK_REVISION" >> $GITHUB_ENV
-          echo "Registered new task definition revision: $TASK_REVISION"
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
