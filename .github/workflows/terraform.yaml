@@ -34,7 +34,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -47,11 +47,10 @@ jobs:
             echo "Bucket $BUCKET_NAME already exists."
           else
             echo "Bucket $BUCKET_NAME does not exist. Creating..."
-            aws s3api create-bucket --bucket "$BUCKET_NAME" --region ap-south-1
+            aws s3api create-bucket --bucket "$BUCKET_NAME" --region us-east-1
             echo "Waiting for bucket to be available..."
             sleep 10
           fi
-
       - name: Terraform Init with S3 Backend
         run: terraform init -backend-config="bucket=${{ secrets.TERRAFORM_S3_BUCKET }}" 
 
@@ -68,4 +67,4 @@ jobs:
           else
             echo "Running Terraform Apply..."
             terraform apply -auto-approve
-          fi
+          fi 
