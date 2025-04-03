@@ -3,7 +3,7 @@ name: Deploy to Amazon ECS
 on:
   push:
     branches:
-      - develop
+      - main
     paths-ignore:
       - "terraform/**"
 
@@ -29,6 +29,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Install Terraform ✅
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: latest
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -43,7 +48,7 @@ jobs:
           docker push $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Deploy using Terraform (No `cd terraform`)
+      - name: Deploy using Terraform
         run: |
           terraform init
           terraform apply -auto-approve -var "ecr_repository_url=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY"
