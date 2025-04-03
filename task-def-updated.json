@@ -1,0 +1,21 @@
+{
+    "family": "my-task",
+    "requiresCompatibilities": ["EC2"],
+    "networkMode": "bridge",
+    "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "test-container",
+            "image": "339713126349.dkr.ecr.us-east-1.amazonaws.com/aws-devops:latest",
+            "memory": 512,
+            "cpu": 256,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80
+                }
+            ]
+        }
+    ]
+}
