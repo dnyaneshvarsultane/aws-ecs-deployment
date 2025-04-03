@@ -177,19 +177,23 @@ resource "aws_ecs_task_definition" "my_task" {
   requires_compatibilities = ["EC2"]
   network_mode             = "bridge"
   container_definitions    = jsonencode([{
-    name  = "my-container"
-    image = "${var.ecr_repository_url}:latest"
-    memory = 512
-    cpu    = 256
-    essential = true
-    portMappings = [{ containerPort = 80, hostPort = 80 }]
-environment = [
-  { name = "DB_HOST", value = aws_db_instance.db.address },
-  { name = "DB_USER", value = "admin" },
-  { name = "DB_PASSWORD", value = var.db_password },
-  { name = "S3_BUCKET", value = aws_s3_bucket.app_bucket.bucket }
-]
-
+    name        = "my-container"
+    image       = "${var.ecr_repository_url}:latest"
+    memory      = 512
+    cpu         = 256
+    essential   = true
+    portMappings = [{
+      containerPort = 80
+      hostPort      = 80
+    }]
+    environment = [
+      { name = "DB_HOST", value = aws_db_instance.db.address },
+      { name = "DB_USER", value = "admin" },
+      { name = "DB_PASSWORD", value = var.db_password },
+      { name = "S3_BUCKET", value = aws_s3_bucket.app_bucket.bucket }
+    ]
+  }])
+}
     mountPoints = [{
       sourceVolume  = "efs-storage"
       containerPath = "/mnt/efs"
