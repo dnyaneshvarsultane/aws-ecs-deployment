@@ -1,0 +1,71 @@
+name: Terraform Deployment
+
+on:
+  push:
+    paths:
+      - '**.tf'
+      - 'backend.tf'
+      - '.github/workflows/terraform.yaml'
+    branches:
+      - main
+
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Choose Terraform action"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    name: Terraform Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Ensure S3 Bucket Exists Before Terraform Init
+        run: |
+          BUCKET_NAME=${{ secrets.TERRAFORM_S3_BUCKET }}
+          
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Bucket $BUCKET_NAME already exists."
+          else
+            echo "Bucket $BUCKET_NAME does not exist. Creating..."
+            aws s3api create-bucket --bucket "$BUCKET_NAME" --region ap-south-1
+            echo "Waiting for bucket to be available..."
+            sleep 10
+          fi
+
+      - name: Terraform Init with S3 Backend
+        run: terraform init -backend-config="bucket=${{ secrets.TERRAFORM_S3_BUCKET }}" 
+
+      - name: Terraform Apply (Default on Push)
+        if: github.event_name == 'push'
+        run: terraform apply -auto-approve
+
+      - name: Terraform Manual Apply/Destroy
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+            echo "Running Terraform Destroy..."
+            terraform destroy -auto-approve
+          else
+            echo "Running Terraform Apply..."
+            terraform apply -auto-approve
+          fi
