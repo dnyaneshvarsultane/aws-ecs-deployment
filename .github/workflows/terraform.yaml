@@ -58,13 +58,18 @@ jobs:
         if: github.event_name == 'push'
         run: terraform apply -auto-approve
 
-      - name: Terraform Manual Apply/Destroy
-        if: github.event_name == 'workflow_dispatch'
+      # - name: Terraform Manual Apply/Destroy
+      #   if: github.event_name == 'workflow_dispatch'
+      #   run: |
+      #     if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+      #       echo "Running Terraform Destroy..."
+      #       terraform destroy -auto-approve
+      #     else
+      #       echo "Running Terraform Apply..."
+      #       terraform apply -auto-approve
+      #     fi 
+      - name: Terraform Destroy
         run: |
-          if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
-            echo "Running Terraform Destroy..."
-            terraform destroy -auto-approve
-          else
-            echo "Running Terraform Apply..."
-            terraform apply -auto-approve
-          fi 
+          echo "Running Terraform Destroy..."
+          terraform destroy -auto-approve
+
